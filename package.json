@@ -1,0 +1,51 @@
+{
+	"name": "hertzscript-compiler",
+	"version": "1.0.0",
+	"description": "A system that produces preemptible JavaScript coroutines which conform to the HertzScript specification.",
+	"keywords": [
+		"javascript",
+		"preemption",
+		"preemptive",
+		"preemptible",
+		"interruption",
+		"green-threads",
+		"coroutines",
+		"coroutine",
+		"coroutine-dispatcher",
+		"concurrency",
+		"concurrent",
+		"concurrent-programming",
+		"concurrent-javascript",
+		"stackless-coroutines",
+		"multitasking",
+		"cooperative-multitasking",
+		"preemptive-multitasking",
+		"voluntary-preemtive-multitasking"
+	],
+	"homepage": "https://github.com/Floofies/hertzscript-compiler#readme",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Floofies/hertzscript-compiler.git"
+	},
+	"bugs": {
+		"url": "https://github.com/Floofies/hertzscript-compiler/issues"
+	},
+	"main": "src/compile.js",
+	"author": "Dani Glore (https://github.com/Floofies)",
+	"contributors": [
+		"Thomas G. (https://github.com/trgwii)"
+	],
+	"license": "MIT",
+	"bin": {
+		"hzc": "./src/compileCLI.js",
+		"hzcompile": "./src/compileCLI.js"
+	},
+	"dependencies": {
+		"acorn": "^6.0.4",
+		"acorn-walk": "^6.1.1",
+		"babel-core": "^6.26.3",
+		"command-line-args": "^5.0.2",
+		"console-buffer": "^1.0.1",
+		"escodegen": "^1.11.0"
+	}
+}
