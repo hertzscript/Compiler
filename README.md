@@ -83,10 +83,16 @@ The function returns a string which is the compiled JavaScript code.
 
 `bin/compileCLI.js` imports `src/compile.js` and `src/compileSpawn.js`, wrapping them in a simple command-line interface.
 
-You can invoke the interface script like so:
+You can invoke the interface script like so, shown here with the `spawn` compiler turned on and the ouput code running in `--standalone` mode:
 
 ```bash
-node ./bin/compileCLI.js --spawn "spawn console.log('Hello World!');"
+echo "spawn console.log('Hello World!');" | node ./bin/compileCLI.js --spawn -s
+```
+
+You can also supply input and output paths with the `-i` and `-o` parameters:
+
+```bash
+node ./bin/compileCLI.js --spawn -s -i path/to/my/script.js -o path/to/my/script.hz.js
 ```
 
 ### Command-Line Options
