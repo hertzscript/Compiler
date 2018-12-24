@@ -1,4 +1,4 @@
-# hertzscript-compiler
+# HertzScript Coroutine Compiler
 
 The HertzScript compiler produces preemptible JavaScript coroutines which conform to the HertzScript specification.
 
