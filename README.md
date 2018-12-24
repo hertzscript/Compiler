@@ -31,7 +31,7 @@ const compiledCode = hzCompile(sourceCode);
 ### Function Parameters
 
 ```JavaScript
-hzCompile( source [, module  = false [, standalone = false [, spawn = false ]]);
+hzCompile( source [, module  = false [, standalone = false [, spawn = false ]]]);
 ```
 
 `source`
