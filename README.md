@@ -2,6 +2,8 @@
 
 The HertzScript compiler produces preemptible JavaScript coroutines which conform to the HertzScript specification.
 
+The [HertzScript Dispatcher](https://github.com/Floofies/hertzscript-dispatcher) can be used to execute the compiled code.
+
 See the [HertzScript Specification](https://github.com/Floofies/hertzscript-specification) repository for more information.
 
 # Usage
