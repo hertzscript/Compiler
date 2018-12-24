@@ -1,7 +1,7 @@
 {
 	"name": "hertzscript-compiler",
-	"version": "1.0.0",
-	"description": "A system that produces preemptible JavaScript coroutines which conform to the HertzScript specification.",
+	"version": "0.0.1",
+	"description": "Produces preemptible JavaScript coroutines which conform to the HertzScript specification.",
 	"keywords": [
 		"javascript",
 		"preemption",
@@ -37,8 +37,8 @@
 	],
 	"license": "MIT",
 	"bin": {
-		"hzc": "./src/compileCLI.js",
-		"hzcompile": "./src/compileCLI.js"
+		"hzc": "./bin/compileCLI.js",
+		"hzcompile": "./bin/compileCLI.js"
 	},
 	"dependencies": {
 		"acorn": "^6.0.4",
