@@ -38,15 +38,15 @@ hzCompile( source [, module  = false [, standalone = false [, spawn = false ]]])
 
 - The input JavaScript source code you would like to compile.
 
-`module`
+`module` (*Optional*)
 
 - If `true` then the compiled source code will be output as a HertzScript module. Defaults to `false`.
 
-`standalone`
+`standalone` (*Optional*)
 
 - If `true` then the compiled source code will be output as a self-running HertzScript module. Defaults to `false`.
 
-`spawn`
+`spawn` (*Optional*)
 
 - If `true` then `compileSpawn.js` will be used to detect and compile the `spawn` keyword. Defaults to `false`.
 
