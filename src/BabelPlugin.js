@@ -159,7 +159,7 @@ function Plugin(babel) {
 		funcExp.type = "FunctionExpression";
 		if (funcExp.body.type !== "BlockStatement") {
 			funcExp.body = t.blockStatement([
-				t.expressionStatement(funcExp.body)
+				t.returnStatement(funcExp.body)
 			]);
 		}
 		return t.callExpression(
