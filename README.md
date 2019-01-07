@@ -1,5 +1,7 @@
 # HertzScript Coroutine Compiler
 
+[![NPM](https://nodei.co/npm/hertzscript-compiler.png)](https://nodei.co/npm/hertzscript-compiler/)
+
 The HertzScript compiler produces preemptible JavaScript coroutines which conform to the HertzScript specification.
 
 The [HertzScript Dispatcher](https://github.com/Floofies/hertzscript-dispatcher) can be used to execute the compiled code.
