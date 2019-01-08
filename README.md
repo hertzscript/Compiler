@@ -12,20 +12,18 @@ See the [HertzScript Specification](https://github.com/Floofies/hertzscript-spec
 
 There are two different ways to use this:
 
-1. Import `src/compile.js` and `src/compileSpawn.js` into your own script.
+1. Import the compiler module into your script.
 
-2. Invoke `bin/compileCLI.js` via terminal.
+2. Invoke `hzc` via terminal.
 
-`src/compile.js` and `src/compileSpawn.js` are importable modules with simple interfaces.
-
-## `compile.js`
+## `Compiler Module`
 
 This module serves as the core of the HzScript compilation pipeline, and transforms JavaScript functions into instruction streams; all functions within a HzScript program are GeneratorFunctions which yield instructions.
 
 Exported as a single function, you can invoke it like so:
 
 ```JavaScript
-const hzCompile = require("./src/compile.js");
+const hzCompile = require("hertzscript-compiler");
 const sourceCode = "console.log('Hello World!')";
 const compiledCode = hzCompile(sourceCode);
 ```
@@ -54,22 +52,22 @@ hzCompile( source [, module  = false [, standalone = false [, spawn = false ]]])
 
 `spawn` (*Optional*)
 
-- If `true` then `compileSpawn.js` will be used to detect and compile the `spawn` keyword. Defaults to `false`.
+- If `true` then the `spawn` keyword compiler will be used to detect and compile the `spawn` keyword. Defaults to `false`.
 
 ## Command-Line Interface
 
-`bin/compileCLI.js` imports `src/compile.js` and `src/compileSpawn.js`, wrapping them in a simple command-line interface.
+The `hzc` command imports the compiler module and wraps it in a simple command-line interface.
 
-You can invoke the interface script like so, shown here with the `spawn` compiler turned on and the ouput code running in `--standalone` mode:
+You can invoke the interface script like so, shown here with the `spawn` compiler enabled and the ouput code wrapped in `--standalone` mode:
 
 ```bash
-echo "spawn console.log('Hello World!');" | node ./bin/compileCLI.js --spawn -s
+echo "spawn console.log('Hello World!')" | hzc --spawn -s
 ```
 
 You can also supply input and output paths with the `-i` and `-o` parameters:
 
 ```bash
-node ./bin/compileCLI.js --spawn -s -i path/to/my/script.js -o path/to/my/script.hz.js
+hzc -i path/to/my/script.js -o path/to/my/output.hz.js
 ```
 
 ### Command-Line Options
@@ -92,4 +90,4 @@ node ./bin/compileCLI.js --spawn -s -i path/to/my/script.js -o path/to/my/script
 
 `--spawn`
 
-- If set, then `compileSpawn.js` will be used to detect and compile the `spawn` keyword.
+- If set, then the `spawn` keyword compiler will be used to detect and compile the `spawn` keyword.
