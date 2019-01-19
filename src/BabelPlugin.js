@@ -1,5 +1,15 @@
 function Plugin(babel) {
 	const t = babel.types;
+	function markTailCall(retStmt) {
+		if (retStmt.argument === null) return;
+		if (retStmt.argument.type === "CallExpression") {
+			retStmt.argument.isTailCall = true;
+		} else if (retStmt.argument.type === "SequenceExpression" && retStmt.argument.expressions.length > 0) {
+			const lastExp = retStmt.argument.expressions[retStmt.argument.expressions.length - 1];
+			if (lastExp.type !== "CallExpression") return;
+			lastExp.isTailCall = true;
+		}
+	}
 	// Function call without arguments
 	function hzCall(callee) {
 		return t.sequenceExpression([
@@ -190,7 +200,7 @@ function Plugin(babel) {
 			t.variableDeclarator(
 				funcDec.id,
 				hzCoroutine(t.functionExpression(
-					funcDec.id,
+					null,
 					funcDec.params,
 					funcDec.body,
 					true
@@ -204,7 +214,7 @@ function Plugin(babel) {
 			t.variableDeclarator(
 				funcDec.id,
 				hzGenerator(t.functionExpression(
-					funcDec.id,
+					null,
 					funcDec.params,
 					funcDec.body,
 					true
@@ -346,6 +356,7 @@ function Plugin(babel) {
 			},
 			exit: function (path) {
 				//if (path.getFunctionParent().type === "Program") return;
+				const isTailCall = "isTailCall" in path.node;
 				if (path.node.callee.type === "MemberExpression") {
 					if (path.node.arguments.length === 0) {
 						path.replaceWith(hzCallMethod(
@@ -371,10 +382,16 @@ function Plugin(babel) {
 						));
 					}
 				}
+				if (isTailCall) {
+					path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
+				}
 				path.skip();
 			}
 		},
 		"ReturnStatement": {
+			enter: function (path) {
+				markTailCall(path.node);
+			},
 			exit: function (path) {
 				const parentPath = path.getFunctionParent();
 				if (path.node.argument === null) path.node.argument = hzReturn();
