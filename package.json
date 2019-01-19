@@ -1,6 +1,6 @@
 {
 	"name": "hertzscript-compiler",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"description": "Produces preemptible JavaScript coroutines which conform to the HertzScript specification.",
 	"keywords": [
 		"javascript",
