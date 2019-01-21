@@ -388,14 +388,18 @@ function Plugin(babel) {
 						));
 					}
 				}
-				if (isTailCall && (tryStack.length === 0 || finalStack.length > 0)) {
+				if (isTailCall) {
 					if (tryStack.length > 0) {
 						const inTryCatch = tryStack[tryStack.length - 1];
-						if (path.getFunctionParent().node === inTryCatch.function.node && finalStack.length > 0) {
-							const inFinalizer = finalStack[finalStack.length - 1];
-							if ("finalizer" in inTryCatch.node && inFinalizer === inTryCatch.node.finalizer) {
-								path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
+						if (path.getFunctionParent().node === inTryCatch.function.node) {
+							if (finalStack.length > 0) {
+								const inFinalizer = finalStack[finalStack.length - 1];
+								if ("finalizer" in inTryCatch.node && inFinalizer === inTryCatch.node.finalizer) {
+									path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
+								}
 							}
+						} else {
+							path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
 						}
 					} else {
 						path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
