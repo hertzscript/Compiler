@@ -1,13 +1,23 @@
 function Plugin(babel) {
 	const t = babel.types;
-	function markTailCall(retStmt) {
-		if (retStmt.argument === null) return;
-		if (retStmt.argument.type === "CallExpression") {
-			retStmt.argument.isTailCall = true;
-		} else if (retStmt.argument.type === "SequenceExpression" && retStmt.argument.expressions.length > 0) {
-			const lastExp = retStmt.argument.expressions[retStmt.argument.expressions.length - 1];
-			if (lastExp.type !== "CallExpression") return;
-			lastExp.isTailCall = true;
+	const tcoTypes = [
+		"SequenceExpression",
+		"LogicalExpression",
+		"ConditionalExpression",
+		"CallExpression"
+	];
+	function markTailCall(expr) {
+		if (expr.type === "CallExpression") {
+			expr.isTailCall = true;
+		} else if (expr.type === "SequenceExpression" && expr.expressions.length > 0) {
+			return markTailCall(expr.expressions[expr.expressions.length - 1]);
+		} else if (expr.type === "LogicalExpression") {
+			if (expr.operator === "&&" || expr.operator === "||") {
+				return markTailCall(expr.right);
+			}
+		} else if (expr.type === "ConditionalExpression") {
+			markTailCall(expr.consequent);
+			return markTailCall(expr.alternate);
 		}
 	}
 	// Function call without arguments
@@ -390,7 +400,7 @@ function Plugin(babel) {
 		},
 		"ReturnStatement": {
 			enter: function (path) {
-				markTailCall(path.node);
+				if (retStmt.argument !== null) markTailCall(retStmt.argument);
 			},
 			exit: function (path) {
 				const parentPath = path.getFunctionParent();
