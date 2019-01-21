@@ -1,5 +1,7 @@
 function Plugin(babel) {
 	const t = babel.types;
+	const tryStack = [];
+	const finalStack = [];
 	function markTailCall(expr) {
 		if (expr.type === "CallExpression") {
 			expr.isTailCall = true;
@@ -386,15 +388,25 @@ function Plugin(babel) {
 						));
 					}
 				}
-				if (isTailCall) {
-					path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
+				if (isTailCall && (tryStack.length === 0 || finalStack.length > 0)) {
+					if (tryStack.length > 0) {
+						const inTryCatch = tryStack[tryStack.length - 1];
+						if (path.getFunctionParent().node !== inTryCatch.function.node || finalStack.length > 0) {
+							const inFinalizer = finalStack[finalStack.length - 1];
+							if ("finalizer" in inTryCatch.node && inFinalizer === inTryCatch.node.finalizer) {
+								path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
+							}
+						}
+					} else {
+						path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
+					}
 				}
 				path.skip();
 			}
 		},
 		"ReturnStatement": {
 			enter: function (path) {
-				if (retStmt.argument !== null) markTailCall(retStmt.argument);
+				if (path.node.argument !== null) markTailCall(path.node.argument);
 			},
 			exit: function (path) {
 				const parentPath = path.getFunctionParent();
@@ -412,12 +424,49 @@ function Plugin(babel) {
 				])];
 			}
 		},
+		"BlockStatement": {
+			enter: function (path) {
+				if (tryStack.length > 0) {
+					const stmtParent = path.getStatementParent();
+					if (
+						stmtParent.node.type === "TryStatement"
+						&& "finalizer" in stmtParent.node
+						&& stmtParent.node.finalizer === path.node
+					) {
+						finalStack.push(path.node);
+					}
+				}
+			},
+			exit: function (path) {
+				if (tryStack.length > 0 && finalStack.length > 0) {
+					const stmtParent = path.getStatementParent();
+					if (
+						stmtParent.node.type === "TryStatement"
+						&& "finalizer" in stmtParent.node
+						&& stmtParent.node.finalizer === path.node
+					) {
+						finalStack.pop();
+					}
+				}
+			}
+		},
+		"TryStatement": {
+			enter: function (path) {
+				tryStack.push({
+					node: path.node,
+					function: path.getFunctionParent()
+				});
+			},
+			exit: function (path) {
+				if (tryStack.length > 0) tryStack.pop();
+			}
+		},
 		"YieldExpression": {
 			exit: function (path) {
 				if (path.node.argument === null) path.node.argument = hzYield();
 				else path.node.argument = hzYieldArg(path.node.argument);
 			}
-		},
+		}
 		/*
 		"SpawnExpression": {
 			exit: function (path) {
