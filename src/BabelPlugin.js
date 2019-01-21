@@ -2,6 +2,7 @@ function Plugin(babel) {
 	const t = babel.types;
 	const tryStack = [];
 	const finalStack = [];
+	// Traverses specific expression types and marks a CallExpression in tail position
 	function markTailCall(expr) {
 		if (expr.type === "CallExpression") {
 			expr.isTailCall = true;
@@ -16,7 +17,12 @@ function Plugin(babel) {
 			return markTailCall(expr.alternate);
 		}
 	}
-	// Function call without arguments
+	// HzTokens are unique single-instance objects for wrapping user instructions and data.
+	// Type 1: Invocation Tokens,
+	// Wrap userland functors and any operands needed to invoke them.
+	// Type 2: Data Tokens,
+	// Wrap arbitrary userland datum when returning or yielding.
+	// Instruction Token: Function call without arguments
 	function hzCall(callee) {
 		return t.sequenceExpression([
 			t.yieldExpression(
@@ -32,14 +38,14 @@ function Plugin(babel) {
 			)
 		]);
 	}
-	// Function call with arguments
+	// Instruction Token: Function call with arguments
 	function hzCallArgs(name, argsArray) {
 		const seqExp = hzCall(name);
 		seqExp.expressions[0].argument.callee.property.name = "callArgs";
 		seqExp.expressions[0].argument.arguments.push(t.arrayExpression(argsArray));
 		return seqExp;
 	}
-	// Method call without arguments
+	// Instruction Token: Method call without arguments
 	function hzCallMethod(object, prop) {
 		return t.sequenceExpression([
 			t.yieldExpression(
@@ -56,53 +62,54 @@ function Plugin(babel) {
 			)
 		]);
 	}
-	// Method call with arguments
+	// Instruction Token: Method call with arguments
 	function hzCallMethodArgs(object, prop, argsArray) {
 		const seqExp = hzCallMethod(object, prop);
 		seqExp.expressions[0].argument.callee.property.name = "callMethodArgs";
 		seqExp.expressions[0].argument.arguments.push(t.arrayExpression(argsArray));
 		return seqExp;
 	}
+	// Instruction Token: Constructor call without arguments
 	function hzNew(callee) {
 		const seqExp = hzCall(callee);
 		seqExp.expressions[0].argument.callee.property.name = "new";
 		return seqExp;
 	}
+	// Instruction Token: Constructor call with arguments
 	function hzNewArgs(name, argsArray) {
 		const seqExp = hzNew(name);
 		seqExp.expressions[0].argument.arguments.push(t.arrayExpression(argsArray));
 		seqExp.expressions[0].argument.callee.property.name = "newArgs";
 		return seqExp;
 	}
+	// Instruction Token: Method constructor call without arguments
 	function hzNewMethod(object, prop) {
 		const seqExp = hzCallMethod(object, prop);
 		seqExp.expressions[0].argument.callee.property.name = "newMethod";
 		return seqExp;
 	}
+	// Instruction Token: Method constructor call with arguments
 	function hzNewMethodArgs(object, prop, argsArray) {
 		const seqExp = hzNewMethod(object, prop);
 		seqExp.expressions[0].argument.arguments.push(t.arrayExpression(argsArray));
 		seqExp.expressions[0].argument.callee.property.name = "newMethodArgs";
 		return seqExp;
 	}
-	// Return without argument
+	// Instruction Token: Return without argument
 	function hzReturn() {
-		return t.callExpression(
-			t.memberExpression(
-				t.identifier("hzUserLib"),
-				t.identifier("return")
-			),
-			[]
+		return t.memberExpression(
+			t.identifier("hzUserLib"),
+			t.identifier("return")
 		);
 	}
-	// Return with argument
+	// Instruction Token: Return with argument
 	function hzReturnArg(argExp) {
-		const callExp = hzReturn();
-		callExp.callee.property.name = "returnValue";
-		callExp.arguments.push(argExp);
+		const memberExp = hzReturn();
+		const callExp = t.callExpression(memberExp, [argExp]);
+		memberExp.property.name = "returnValue";
 		return callExp;
 	}
-	// Yield without argument
+	// Instruction Token: Yield without argument
 	function hzYield() {
 		return t.callExpression(
 			t.memberExpression(
@@ -115,14 +122,14 @@ function Plugin(babel) {
 			])]
 		);
 	}
-	// Yield with argument
+	// Instruction Token: Yield with argument
 	function hzYieldArg(argExp) {
 		const callExp = hzYield();
 		callExp.callee.property.name = "yieldValue";
 		callExp.arguments[0].properties[0].value = argExp;
 		return callExp;
 	}
-	// Spawn without arguments
+	// Instruction Token: Spawn without arguments
 	function hzSpawn(spawnExp) {
 		if (spawnExp.arguments[0].type === "CallExpression") {
 			spawnExp.arguments = [spawnExp.arguments[0].callee];
@@ -133,7 +140,7 @@ function Plugin(babel) {
 			spawnExp
 		);
 	}
-	// Spawn with arguments
+	// Instruction Token: Spawn with arguments
 	function hzSpawnArgs(spawnExp) {
 		const args = spawnExp.arguments[0].arguments;
 		spawnExp = hzSpawn(spawnExp);
@@ -141,7 +148,7 @@ function Plugin(babel) {
 		spawnExp.argument.callee.property.name = "spawnArgs";
 		return spawnExp;
 	}
-	// Spawn method without arguments
+	// Instruction Token: Spawn method without arguments
 	function hzSpawnMethod(spawnExp) {
 		spawnExp.arguments = [
 			spawnExp.arguments[0].callee.object,
@@ -152,7 +159,7 @@ function Plugin(babel) {
 			spawnExp
 		);
 	}
-	// Spawn method with arguments
+	// Instruction Token: Spawn method with arguments
 	function hzSpawnMethodArgs(spawnExp) {
 		const args = spawnExp.arguments[0].arguments;
 		spawnExp = hzSpawnMethod(spawnExp);
@@ -160,7 +167,28 @@ function Plugin(babel) {
 		spawnExp.argument.callee.property.name = "spawnMethodArgs";
 		return spawnExp;
 	}
-	// Coroutine factory
+	// Instruction Token: Loop interruption token
+	function loopInterruptor(path) {
+		if (path.node.body.type !== "BlockStatement") {
+			if (path.node.body.type === "EmptyStatement") {
+				path.node.body = t.blockStatement([]);
+			} else {
+				if (Array.isArray(path.node.body)) {
+					path.node.body = t.blockStatement(path.node.body);
+				} else {
+					path.node.body = t.blockStatement([path.node.body]);
+				}
+			}
+		}
+		path.node.body.body.unshift(t.expressionStatement(
+			t.yieldExpression(t.memberExpression(
+				t.identifier("hzUserLib"),
+				t.identifier("loopYield")
+			))
+		));
+	}
+	// Function call, declaration, and expression detours enable dynamic call site interception.
+	// FunctionExpression detour
 	function hzCoroutine(funcExp) {
 		return t.callExpression(
 			t.memberExpression(
@@ -170,7 +198,7 @@ function Plugin(babel) {
 			[funcExp]
 		);
 	}
-	// ArrowFunction Coroutine factory
+	// ArrowFunctionExpression detour
 	function hzArrowCoroutine(funcExp) {
 		funcExp.type = "FunctionExpression";
 		if (funcExp.body.type !== "BlockStatement") {
@@ -190,7 +218,7 @@ function Plugin(babel) {
 			]
 		);
 	}
-	// Generator factory
+	// Generator FunctionExpression detour
 	function hzGenerator(funcExp) {
 		return t.callExpression(
 			t.memberExpression(
@@ -200,7 +228,7 @@ function Plugin(babel) {
 			[funcExp]
 		);
 	}
-	// Coroutine declaration
+	// FunctionDeclaration detour
 	function declareHzCoroutine(funcDec) {
 		return t.variableDeclaration("var", [
 			t.variableDeclarator(
@@ -214,7 +242,7 @@ function Plugin(babel) {
 			)
 		]);
 	}
-	// Generator declaration
+	// Generator FunctionDeclaration detour
 	function declareHzGenerator(funcDec) {
 		return t.variableDeclaration("var", [
 			t.variableDeclarator(
@@ -228,29 +256,9 @@ function Plugin(babel) {
 			)
 		]);
 	}
-	function loopInterruptor(path) {
-		if (path.node.body.type !== "BlockStatement") {
-			if (path.node.body.type === "EmptyStatement") {
-				path.node.body = t.blockStatement([]);
-			} else {
-				if (Array.isArray(path.node.body)) {
-					path.node.body = t.blockStatement(path.node.body);
-				} else {
-					path.node.body = t.blockStatement([path.node.body]);
-				}
-			}
-		}
-		path.node.body.body.unshift(t.expressionStatement(
-			t.yieldExpression(t.callExpression(
-				t.memberExpression(
-					t.identifier("hzUserLib"),
-					t.identifier("loopYield")
-				),
-				[]
-			))
-		));
-	}
 	const visitor = {
+		// These all nsert a yield & HzToken at the top of loops
+		// Useful for interrupting loops which make few function calls
 		"WhileStatement": {
 			exit: loopInterruptor
 		},
@@ -266,6 +274,7 @@ function Plugin(babel) {
 		"ForInStatement": {
 			exit: loopInterruptor
 		},
+		// Detours a FunctionExpression
 		"FunctionExpression": {
 			exit: function (path) {
 				if (path.node.generator) path.replaceWith(hzGenerator(path.node));
@@ -274,6 +283,7 @@ function Plugin(babel) {
 				path.skip();
 			}
 		},
+		// Detours an ArrowFunctionExpression
 		"ArrowFunctionExpression": {
 			exit: function (path) {
 				path.replaceWith(hzArrowCoroutine(path.node));
@@ -281,6 +291,8 @@ function Plugin(babel) {
 				path.skip();
 			}
 		},
+		// Detours a FunctionDeclaration.
+		// Changes it to a FunctionExpression and assigns it to a variable, moving it tp the top of the block
 		"FunctionDeclaration": {
 			exit: function (path) {
 				if (path.node.generator) var varDec = declareHzGenerator(path.node);
@@ -292,6 +304,7 @@ function Plugin(babel) {
 				path.remove();
 			}
 		},
+		// Transforms a NewExpression into an Instruction Token
 		"NewExpression": {
 			exit: function (path) {
 				if (path.node.callee.type === "MemberExpression") {
@@ -322,6 +335,9 @@ function Plugin(babel) {
 				path.skip();
 			}
 		},
+		// Checks if the CallExpression is a partially transformed "spawn" HzToken from Acorn.
+		// If so, it completes the transformation of arguments and wraps the HzToken in a yield.
+		// If the argument is a FunctionExpression then it is detoured.
 		"CallExpression": {
 			enter: function (path) {
 				if (path.node.callee.type === "MemberExpression" &&
@@ -360,8 +376,9 @@ function Plugin(babel) {
 					path.skip();
 				}
 			},
+			// Transforms a CallExpression into an Instruction Token.
+			// Checks if the CallExpression is a proper tail call and marks the HzToken if so.
 			exit: function (path) {
-				//if (path.getFunctionParent().type === "Program") return;
 				const isTailCall = "isTailCall" in path.node;
 				if (path.node.callee.type === "MemberExpression") {
 					if (path.node.arguments.length === 0) {
@@ -409,14 +426,15 @@ function Plugin(babel) {
 			}
 		},
 		"ReturnStatement": {
+			// Finds and marks a CallExpression if it is in the tail position
 			enter: function (path) {
 				if (path.node.argument !== null) markTailCall(path.node.argument);
 			},
+			// Transforms a ReturnStatement into an Instruction Token
 			exit: function (path) {
-				const parentPath = path.getFunctionParent();
 				if (path.node.argument === null) path.node.argument = hzReturn();
 				else path.node.argument = hzReturnArg(path.node.argument);
-				if (parentPath.node.generator) path.node.argument.arguments = [t.ObjectExpression([
+				if (path.getFunctionParent().node.generator) path.node.argument.arguments = [t.ObjectExpression([
 					t.ObjectProperty(
 						t.identifier("value"),
 						path.node.argument.arguments[0]
@@ -429,6 +447,7 @@ function Plugin(babel) {
 			}
 		},
 		"BlockStatement": {
+			// Records entry into the "finalizer" block of a TryStatement
 			enter: function (path) {
 				if (tryStack.length > 0) {
 					const stmtParent = path.getStatementParent();
@@ -441,6 +460,7 @@ function Plugin(babel) {
 					}
 				}
 			},
+			// Records exit out of the "finalizer" block of a TryStatement
 			exit: function (path) {
 				if (tryStack.length > 0 && finalStack.length > 0) {
 					const stmtParent = path.getStatementParent();
@@ -455,31 +475,25 @@ function Plugin(babel) {
 			}
 		},
 		"TryStatement": {
+			// Records entry into a TryStatement
 			enter: function (path) {
 				tryStack.push({
 					node: path.node,
 					function: path.getFunctionParent()
 				});
 			},
+			// Records exit out of a TryStatement
 			exit: function (path) {
 				if (tryStack.length > 0) tryStack.pop();
 			}
 		},
 		"YieldExpression": {
+			// Transforms a YieldExpression into an Instruction Token
 			exit: function (path) {
 				if (path.node.argument === null) path.node.argument = hzYield();
 				else path.node.argument = hzYieldArg(path.node.argument);
 			}
 		}
-		/*
-		"SpawnExpression": {
-			exit: function (path) {
-				if (path.node.argument === null) return;
-				path.node.type = "YieldExpression"
-				path.node.argument = hzSpawn(path.node.argument);
-			}
-		}
-		*/
 	};
 	return { visitor: visitor };
 };
