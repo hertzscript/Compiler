@@ -1,11 +1,5 @@
 function Plugin(babel) {
 	const t = babel.types;
-	const tcoTypes = [
-		"SequenceExpression",
-		"LogicalExpression",
-		"ConditionalExpression",
-		"CallExpression"
-	];
 	function markTailCall(expr) {
 		if (expr.type === "CallExpression") {
 			expr.isTailCall = true;
