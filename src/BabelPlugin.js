@@ -1,7 +1,6 @@
 function Plugin(babel) {
 	const t = babel.types;
 	const tryStack = [];
-	const finalStack = [];
 	// Traverses specific expression types and marks a CallExpression in tail position
 	function markTailCall(expr) {
 		if (expr.type === "CallExpression") {
@@ -9,13 +8,15 @@ function Plugin(babel) {
 		} else if (expr.type === "SequenceExpression" && expr.expressions.length > 0) {
 			return markTailCall(expr.expressions[expr.expressions.length - 1]);
 		} else if (expr.type === "LogicalExpression") {
-			if (expr.operator === "&&" || expr.operator === "||") {
+			if (expr.operator === "&&" || expr.operator === "||")
 				return markTailCall(expr.right);
-			}
 		} else if (expr.type === "ConditionalExpression") {
 			markTailCall(expr.consequent);
 			return markTailCall(expr.alternate);
 		}
+	}
+	function addTailCallBool(seqExp) {
+		seqExp.expressions[0].argument.arguments.push(t.booleanLiteral(true));
 	}
 	// HzTokens are unique single-instance objects for wrapping user instructions and data.
 	// Type 1: Invocation Tokens,
@@ -407,19 +408,19 @@ function Plugin(babel) {
 				}
 				if (isTailCall) {
 					if (tryStack.length > 0) {
-						const inTryCatch = tryStack[tryStack.length - 1];
-						if (path.getFunctionParent().node === inTryCatch.function.node) {
-							if (finalStack.length > 0) {
-								const inFinalizer = finalStack[finalStack.length - 1];
-								if ("finalizer" in inTryCatch.node && inFinalizer === inTryCatch.node.finalizer) {
-									path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
-								}
+						const tryData = tryStack[tryStack.length - 1];
+						if (path.getFunctionParent().node === tryData.functionParent) {
+							if (
+								tryData.blockType === "finalizer"
+								|| tryData.blockType === "catch"
+							) {
+								addTailCallBool(path.node);
 							}
 						} else {
-							path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
+							addTailCallBool(path.node);
 						}
 					} else {
-						path.node.expressions[0].argument.arguments.push(t.booleanLiteral(true));
+						addTailCallBool(path.node);
 					}
 				}
 				path.skip();
@@ -449,27 +450,27 @@ function Plugin(babel) {
 		"BlockStatement": {
 			// Records entry into the "finalizer" block of a TryStatement
 			enter: function (path) {
-				if (tryStack.length > 0) {
+				if (tryStack.length > 0 && tryStack[tryStack.length - 1].blockType === null) {
 					const stmtParent = path.getStatementParent();
-					if (
-						stmtParent.node.type === "TryStatement"
-						&& "finalizer" in stmtParent.node
-						&& stmtParent.node.finalizer === path.node
-					) {
-						finalStack.push(path.node);
+					if (stmtParent.node.type === "TryStatement") {
+						if (stmtParent.node.finalizer === path.node)
+							tryStack[tryStack.length - 1].blockType = "finalizer";
+						else if (stmtParent.node.handler.body === path.node)
+							tryStack[tryStack.length - 1].blockType = "catch";
 					}
 				}
 			},
 			// Records exit out of the "finalizer" block of a TryStatement
 			exit: function (path) {
-				if (tryStack.length > 0 && finalStack.length > 0) {
+				if (tryStack.length > 0 && tryStack[tryStack.length - 1].blockType !== null) {
 					const stmtParent = path.getStatementParent();
-					if (
-						stmtParent.node.type === "TryStatement"
-						&& "finalizer" in stmtParent.node
-						&& stmtParent.node.finalizer === path.node
-					) {
-						finalStack.pop();
+					if (stmtParent.node.type === "TryStatement") {
+						if (
+							stmtParent.node.finalizer === path.node
+							|| stmtParent.node.handler.body === path.node
+						) {
+							tryStack[tryStack.length - 1].blockType = null;
+						}
 					}
 				}
 			}
@@ -478,8 +479,8 @@ function Plugin(babel) {
 			// Records entry into a TryStatement
 			enter: function (path) {
 				tryStack.push({
-					node: path.node,
-					function: path.getFunctionParent()
+					functionParent: path.getFunctionParent().node,
+					blockType: null
 				});
 			},
 			// Records exit out of a TryStatement
