@@ -406,7 +406,9 @@ function Plugin(babel) {
 						));
 					}
 				}
+				// Add Tail Call Optimization marker boolean to the HzToken
 				if (isTailCall) {
+					// Check for TCO validity if the call is within a TryStatement
 					if (tryStack.length > 0) {
 						const tryData = tryStack[tryStack.length - 1];
 						if (path.getFunctionParent().node === tryData.functionParent) {
