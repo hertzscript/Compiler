@@ -13,7 +13,7 @@ module.exports = function hzCompile(source, mod = false, standalone = false, spa
 	});
 	if (standalone) {
 		const header = fs.readFileSync(join(__dirname, "header.js"), 'utf8');
-		output.code = header + "hzDisp.exec(function(hzUserLib){return hzUserLib.hookCoroutine(function*(){" + output.code + "});});";
+		output.code = header + "hzDisp.exec(function(hzUserLib){return hzUserLib.hookCoroutine(function*(){" + output.code + "});}, null, null, true);";
 	} else if (mod) {
 		output.code = "module.exports = function(hzUserLib){return hzUserLib.hookCoroutine(function*(){" + output.code + "});};";
 	}
