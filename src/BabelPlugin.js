@@ -435,18 +435,34 @@ function Plugin(babel) {
 			},
 			// Transforms a ReturnStatement into an Instruction Token
 			exit: function (path) {
-				if (path.node.argument === null) path.node.argument = hzReturn();
-				else path.node.argument = hzReturnArg(path.node.argument);
-				if (path.getFunctionParent().node.generator) path.node.argument.arguments = [t.ObjectExpression([
-					t.ObjectProperty(
-						t.identifier("value"),
-						path.node.argument.arguments[0]
-					),
-					t.ObjectProperty(
-						t.identifier("done"),
-						t.BooleanLiteral(true)
-					)
-				])];
+				if (path.getFunctionParent().node.generator) {
+					if (path.node.argument === null) {
+						path.node.argument = hzReturnArg(t.ObjectExpression([
+							t.ObjectProperty(
+								t.identifier("value"),
+								t.identifier("undefined")
+							),
+							t.ObjectProperty(
+								t.identifier("done"),
+								t.BooleanLiteral(true)
+							)
+						]));
+					} else {
+						path.node.argument = hzReturnArg(t.ObjectExpression([
+							t.ObjectProperty(
+								t.identifier("value"),
+								path.node.argument.arguments[0]
+							),
+							t.ObjectProperty(
+								t.identifier("done"),
+								t.BooleanLiteral(true)
+							)
+						]));
+					}
+				} else {
+					if (path.node.argument === null) path.node.argument = hzReturn();
+					else path.node.argument = hzReturnArg(path.node.argument);
+				}
 			}
 		},
 		"BlockStatement": {
