@@ -124,10 +124,11 @@ function Plugin(babel) {
 		);
 	}
 	// Instruction Token: Yield with argument
-	function hzYieldArg(argExp) {
+	function hzYieldArg(argExp, delegate) {
 		const callExp = hzYield();
 		callExp.callee.property.name = "yieldValue";
 		callExp.arguments[0].properties[0].value = argExp;
+		callExp.arguments[1] = delegate;
 		return callExp;
 	}
 	// Instruction Token: Spawn without arguments
@@ -286,6 +287,9 @@ function Plugin(babel) {
 		},
 		// Detours an ArrowFunctionExpression
 		"ArrowFunctionExpression": {
+			enter: function (path) {
+				if (path.node.body.type !== "BlockStatement") markTailCall(path.node.body);
+			},
 			exit: function (path) {
 				path.replaceWith(hzArrowCoroutine(path.node));
 				path.node.arguments[0].generator = true;
@@ -411,7 +415,8 @@ function Plugin(babel) {
 					// Check for TCO validity if the call is within a TryStatement
 					if (tryStack.length > 0) {
 						const tryData = tryStack[tryStack.length - 1];
-						if (path.getFunctionParent().node === tryData.functionParent) {
+						const parentNode = path.getFunctionParent().node;
+						if (parentNode === tryData.functionParent) {
 							if (
 								tryData.blockType === "finalizer"
 								|| tryData.blockType === "catch"
@@ -436,29 +441,16 @@ function Plugin(babel) {
 			// Transforms a ReturnStatement into an Instruction Token
 			exit: function (path) {
 				if (path.getFunctionParent().node.generator) {
-					if (path.node.argument === null) {
-						path.node.argument = hzReturnArg(t.ObjectExpression([
-							t.ObjectProperty(
-								t.identifier("value"),
-								t.identifier("undefined")
-							),
-							t.ObjectProperty(
-								t.identifier("done"),
-								t.BooleanLiteral(true)
-							)
-						]));
-					} else {
-						path.node.argument = hzReturnArg(t.ObjectExpression([
-							t.ObjectProperty(
-								t.identifier("value"),
-								path.node.argument.arguments[0]
-							),
-							t.ObjectProperty(
-								t.identifier("done"),
-								t.BooleanLiteral(true)
-							)
-						]));
-					}
+					path.node.argument = hzReturnArg(t.ObjectExpression([
+						t.ObjectProperty(
+							t.identifier("value"),
+							path.node.argument === null ? t.identifier("undefined") : path.node.argument
+						),
+						t.ObjectProperty(
+							t.identifier("done"),
+							t.BooleanLiteral(true)
+						)
+					]));
 				} else {
 					if (path.node.argument === null) path.node.argument = hzReturn();
 					else path.node.argument = hzReturnArg(path.node.argument);
@@ -510,7 +502,7 @@ function Plugin(babel) {
 			// Transforms a YieldExpression into an Instruction Token
 			exit: function (path) {
 				if (path.node.argument === null) path.node.argument = hzYield();
-				else path.node.argument = hzYieldArg(path.node.argument);
+				else path.node.argument = hzYieldArg(path.node.argument, path.node.delegate);
 			}
 		}
 	};
