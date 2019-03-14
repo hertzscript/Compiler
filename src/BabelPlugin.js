@@ -124,11 +124,11 @@ function Plugin(babel) {
 		);
 	}
 	// Instruction Token: Yield with argument
-	function hzYieldArg(argExp, delegate) {
+	function hzYieldArg(argExp, delegate = false) {
 		const callExp = hzYield();
 		callExp.callee.property.name = "yieldValue";
 		callExp.arguments[0].properties[0].value = argExp;
-		callExp.arguments[1] = delegate;
+		callExp.arguments[1] = t.BooleanLiteral(delegate);
 		return callExp;
 	}
 	// Instruction Token: Spawn without arguments
@@ -503,6 +503,7 @@ function Plugin(babel) {
 			exit: function (path) {
 				if (path.node.argument === null) path.node.argument = hzYield();
 				else path.node.argument = hzYieldArg(path.node.argument, path.node.delegate);
+				if (path.node.delegate) path.node.delegate = false;
 			}
 		}
 	};
