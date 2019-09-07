@@ -18,6 +18,11 @@ function Plugin(babel) {
 	function addTailCallBool(seqExp) {
 		seqExp.expressions[0].argument.arguments.push(t.booleanLiteral(true));
 	}
+	function getParentNode(path) {
+		const parentPath = path.getFunctionParent();
+		if (parentPath === null) return path.scope.getProgramParent().block;
+		return parentPath.node;
+	}
 	// HzTokens are unique single-instance objects for wrapping user instructions and data.
 	// Type 1: Invocation Tokens,
 	// Wrap userland functors and any operands needed to invoke them.
@@ -239,7 +244,8 @@ function Plugin(babel) {
 					null,
 					funcDec.params,
 					funcDec.body,
-					true
+					true,
+					funcDec.async
 				))
 			)
 		]);
@@ -253,7 +259,8 @@ function Plugin(babel) {
 					null,
 					funcDec.params,
 					funcDec.body,
-					true
+					true,
+					funcDec.async
 				))
 			)
 		]);
@@ -303,9 +310,9 @@ function Plugin(babel) {
 				if (path.node.generator) var varDec = declareHzGenerator(path.node);
 				else var varDec = declareHzCoroutine(path.node);
 				path.node.generator = true;
-				const parentPath = path.getFunctionParent();
-				if (Array.isArray(parentPath.node.body)) parentPath.node.body.unshift(varDec);
-				else parentPath.node.body.body.unshift(varDec);
+				const parentNode = getParentNode(path);
+				if (Array.isArray(parentNode.body)) parentNode.body.unshift(varDec);
+				else parentNode.body.body.unshift(varDec);
 				path.remove();
 			}
 		},
@@ -415,7 +422,7 @@ function Plugin(babel) {
 					// Check for TCO validity if the call is within a TryStatement
 					if (tryStack.length > 0) {
 						const tryData = tryStack[tryStack.length - 1];
-						const parentNode = path.getFunctionParent().node;
+						const parentNode = getParentNode(path);
 						if (parentNode === tryData.functionParent) {
 							if (
 								tryData.blockType === "finalizer"
@@ -440,7 +447,7 @@ function Plugin(babel) {
 			},
 			// Transforms a ReturnStatement into an Instruction Token
 			exit: function (path) {
-				if (path.getFunctionParent().node.generator) {
+				if (getParentNode(path).generator) {
 					path.node.argument = hzReturnArg(t.ObjectExpression([
 						t.ObjectProperty(
 							t.identifier("value"),
@@ -489,7 +496,7 @@ function Plugin(babel) {
 			// Records entry into a TryStatement
 			enter: function (path) {
 				tryStack.push({
-					functionParent: path.getFunctionParent().node,
+					functionParent: getParentNode(path),
 					blockType: null
 				});
 			},

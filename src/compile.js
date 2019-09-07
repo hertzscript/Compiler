@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { join } = require('path');
-const babel = require('babel-core');
+const babel = require('@babel/core');
 const hzBabelPlugin = require('./BabelPlugin.js');
 const compileSpawn = require("./compileSpawn.js");
 module.exports = function hzCompile(source, mod = false, standalone = false, spawn = false) {
