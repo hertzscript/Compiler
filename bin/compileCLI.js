@@ -7,7 +7,8 @@ const cliOptions = [
 	{ name: "module", alias: "m", type: Boolean },
 	{ name: "output", alias: "o", type: String },
 	{ name: "input", alias: "i", type: String },
-	{ name: "spawn", type: Boolean}
+	{ name: "spawn", type: Boolean },
+	{ name: "source", type: String }
 ];
 const args = cliParser(cliOptions);
 if (!("standalone" in args)) args.standalone = false;
@@ -15,6 +16,7 @@ if (!("module" in args)) args.module = false;
 if (!("output" in args)) args.output = null;
 if (!("input" in args)) args.input = null;
 if (!("spawn" in args)) args.spawn = false;
+if (!("source" in args)) args.source = null;
 function inputSource(input, callback) {
 	fs.readFile(input, function (error, buffer) {
 		if (error) throw error;
@@ -51,6 +53,8 @@ function compile(source) {
 if (args.input !== null) {
 	if (args.output !== null) console.log("Opening " + args.input + " for compilation.");
 	inputSource(args.input, compile);
+} else if(args.source) {
+	compile(args.source);
 } else {
 	stdInSource(compile);
 }
